@@ -18,7 +18,7 @@ namespace EntitiesEvents
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             Safety = CollectionHelper.CreateSafetyHandle(allocator);
-            CollectionHelper.SetStaticSafetyId<Events<T>>(ref Safety, ref StaticSafetyId.Data); 
+            CollectionHelper.SetStaticSafetyId<Events<T>>(ref Safety, ref StaticSafetyId.Data);
             if (UnsafeUtility.IsNativeContainerType<T>()) AtomicSafetyHandle.SetNestedContainer(Safety, true);
             AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(Safety, true);
 #endif
@@ -36,10 +36,61 @@ namespace EntitiesEvents
         public bool IsCreated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _container.IsCreated;
+        }
+
+        public int Capacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _container.IsCreated;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckExistsAndThrow(Safety);
+#endif
+                return _container.Capacity;
             }
+        }
+
+        public int CurrentFrameCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckExistsAndThrow(Safety);
+#endif
+                return _container.CurrentFrameCount;
+            }
+        }
+
+        public int RemainingCurrentFrameCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckExistsAndThrow(Safety);
+#endif
+                return _container.RemainingCurrentFrameCapacity;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureCapacity(int capacity)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(Safety);
+#endif
+            _container.EnsureCapacity(capacity);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureAdditionalCapacity(int additionalCapacity)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(Safety);
+#endif
+            _container.EnsureAdditionalCapacity(additionalCapacity);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -72,6 +123,7 @@ namespace EntitiesEvents
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
+            if (!IsCreated) return;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             CollectionHelper.DisposeSafetyHandle(ref Safety);
 #endif

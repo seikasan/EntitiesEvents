@@ -26,6 +26,60 @@ namespace EntitiesEvents
         private readonly AtomicSafetyHandle _safety;
 #endif
 
+        public int Capacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckReadAndThrow(_safety);
+#endif
+                return _buffer->Capacity;
+            }
+        }
+
+        public int CurrentFrameCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckReadAndThrow(_safety);
+#endif
+                return _buffer->CurrentFrameCount;
+            }
+        }
+
+        public int RemainingCurrentFrameCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckReadAndThrow(_safety);
+#endif
+                return _buffer->RemainingCurrentFrameCapacity;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureCapacity(int capacity)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(_safety);
+#endif
+            _buffer->EnsureCapacity(capacity);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureAdditionalCapacity(int additionalCapacity)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(_safety);
+#endif
+            _buffer->EnsureAdditionalCapacity(additionalCapacity);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(in T value)
         {
@@ -94,6 +148,36 @@ namespace EntitiesEvents.LowLevel.Unsafe
         }
 
         [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
+
+        public int Capacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _buffer->Capacity;
+        }
+
+        public int CurrentFrameCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _buffer->CurrentFrameCount;
+        }
+
+        public int RemainingCurrentFrameCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _buffer->RemainingCurrentFrameCapacity;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureCapacity(int capacity)
+        {
+            _buffer->EnsureCapacity(capacity);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnsureAdditionalCapacity(int additionalCapacity)
+        {
+            _buffer->EnsureAdditionalCapacity(additionalCapacity);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(in T value)

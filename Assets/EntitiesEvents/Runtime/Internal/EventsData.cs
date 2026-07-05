@@ -29,6 +29,10 @@ namespace EntitiesEvents.Internal
         internal UnsafeList<EventInstance<T>> GetWriteBuffer() => _state ? _buffer2 : _buffer1;
         internal UnsafeList<EventInstance<T>> GetReadBuffer() => _state ? _buffer1 : _buffer2;
 
+        public int Capacity => Math.Min(_buffer1.Capacity, _buffer2.Capacity);
+        public int CurrentFrameCount => GetWriteBuffer().Length;
+        public int RemainingCurrentFrameCapacity => Math.Max(0, Capacity - CurrentFrameCount);
+
         public EventsData(int capacity, Allocator allocator)
         {
             _buffer1 = new UnsafeList<EventInstance<T>>(capacity, allocator);
@@ -49,7 +53,7 @@ namespace EntitiesEvents.Internal
 
         public void Write(in T value)
         {
-            var id = EventCounter;
+            int id = EventCounter;
             if (_state) _buffer2.Add(new EventInstance<T>(value, id));
             else _buffer1.Add(new EventInstance<T>(value, id));
             EventCounter = unchecked(id + 1);
@@ -89,6 +93,12 @@ namespace EntitiesEvents.Internal
 
             if (_buffer1.Capacity < newCapacity) _buffer1.SetCapacity(newCapacity);
             if (_buffer2.Capacity < newCapacity) _buffer2.SetCapacity(newCapacity);
+        }
+
+        public void EnsureAdditionalCapacity(int additionalCapacity)
+        {
+            if (additionalCapacity <= 0) return;
+            EnsureCapacity(CurrentFrameCount + additionalCapacity);
         }
     }
 

@@ -1,210 +1,173 @@
 # Entities Events
- Provides inter-system messaging functionality to Unity ECS
+
+Entities Events は Unity ECS 向けの軽量な System 間メッセージングライブラリです。このフォークは Unity 6 と Entities 1.4 を対象にし、Roslyn Source Generator と unmanaged `ISystem` ベースの cleanup system だけを使います。
 
 [![license](https://img.shields.io/badge/LICENSE-MIT-green.svg)](LICENSE)
 
 [English README is here](README.md)
 
-## 概要
+## 要件
 
-Entities EventsはUnityのEntity Component System(ECS)向けにイベント機能を追加するライブラリです。EventWriter/EventReaderを用いてSystem間のメッセージングを簡単に実装することができるようになります。
+- Unity 6.0 / 6000.0 以上
+- Entities 1.4.7 以上
 
-## 特徴
+## インストール
 
-* EventWriter/EventReaderを用いた自然なSystem間メッセージング
-* Events<T>を用いた独自のイベントシステムの作成
+Package Manager で `Add package from git URL` を選び、以下を入力します。
 
-### 要件
-
-* Unity 6.0 / 6000.0 以上
-* Entities 1.4.7 以上
-
-### インストール
-
-1. Window > Package ManagerからPackage Managerを開く
-2. 「+」ボタン > Add package from git URL
-3. 以下のURLを入力する
-
-```
-https://github.com/AnnulusGames/EntitiesEvents.git?path=Assets/EntitiesEvents
+```text
+https://github.com/seikasan/EntitiesEvents.git?path=Assets/EntitiesEvents
 ```
 
-あるいはPackages/manifest.jsonを開き、dependenciesブロックに以下を追記
+または `Packages/manifest.json` の `dependencies` に追加します。
 
 ```json
 {
-    "dependencies": {
-        "com.annulusgames.entities-events": "https://github.com/AnnulusGames/EntitiesEvents.git?path=Assets/EntitiesEvents"
-    }
+  "dependencies": {
+    "com.seikasan.entities-events": "https://github.com/seikasan/EntitiesEvents.git?path=Assets/EntitiesEvents"
+  }
 }
 ```
 
 ## 基本的な使い方
 
-Entities Eventsでは型をキーにしてイベントの書き込み/読み取りを行います。
-まずはイベントに利用する構造体を定義します。イベントに用いる構造体に参照型を含めることはできず、unmanagedな型である必要があります。
-
-```cs
-public struct MyEvent { }
-```
-
-使用するイベントの型はあらかじめ`RegisterEvent`属性で登録しておく必要があります。この属性を付加することで、コンパイル時にSourceGeneratorが必要なSystemとassembly属性を含むコードを生成します。
+イベントは unmanaged な struct 型をキーにします。Source Generator が cleanup system と generic component registration を生成できるように、使うイベント型を assembly scope で登録します。
 
 ```cs
 using EntitiesEvents;
 
-// アセンブリにRegisterEvent属性を追加
+public struct MyEvent
+{
+    public int Value;
+}
+
 [assembly: RegisterEvent(typeof(MyEvent))]
 ```
 
-送信側のSystemでは`EventWriter`を用いてイベントの発行を行います。
+Writer と Reader は `OnCreate` で取得してキャッシュします。`EventReader<T>` は reader ごとの読み取り位置を持つため、毎フレーム作り直すと同じイベントを重複して読む可能性があります。
 
 ```cs
+using EntitiesEvents;
 using Unity.Burst;
 using Unity.Entities;
-using EntitiesEvents;
 
 [BurstCompile]
 public partial struct WriteEventSystem : ISystem
 {
-    // 取得したEventWriterはSystem内にキャッシュ
-    EventWriter<MyEvent> eventWriter;
+    EventWriter<MyEvent> _writer;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        // GetEventWriterでEventWriterを取得
-        eventWriter = state.GetEventWriter<MyEvent>();
+        _writer = state.GetEventWriter<MyEvent>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Writeでイベントを発行する
-        eventWriter.Write(new MyEvent());
+        _writer.Write(new MyEvent { Value = 1 });
     }
 }
-```
 
-受信側のSystemでは`EventReader`を用いて発行されたイベントを読み取ります。
-
-```cs
-using Unity.Burst;
-using Unity.Entities;
-using EntitiesEvents;
-
-[BurstCompile]
 public partial struct ReadEventSystem : ISystem
 {
-    // 取得したEventReaderはSystem内にキャッシュ
-    EventReader<MyEvent> eventReader;
+    EventReader<MyEvent> _reader;
 
-    [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        // GetEventReaderでEventReaderを取得
-        eventReader = state.GetEventReader<MyEvent>();
+        _reader = state.GetEventReader<MyEvent>();
     }
 
-    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // eventReader.Read()で未読のイベントを読み取る
-        foreach (var eventData in eventReader.Read())
+        foreach (var eventData in _reader.Read())
         {
-            Debug.Log("received!");
+            // eventData を処理する。
         }
     }
 }
 ```
 
-並列Jobからイベントを書き込む場合は、事前に容量を確保してから`EventParallelWriter`を使います。並列書き込みでは内部バッファのリサイズは行いません。
+## 並列書き込み
+
+並列 writer は内部バッファをリサイズしません。Job を schedule する前に十分な容量を確保し、ワーカースレッド側では `WriteNoResize` を呼びます。
 
 ```cs
+using EntitiesEvents;
 using Unity.Burst;
 using Unity.Entities;
-using EntitiesEvents;
 
 [BurstCompile]
 public partial struct ParallelWriteEventSystem : ISystem
 {
-    EventParallelWriter<MyEvent> eventWriter;
+    EventParallelWriter<MyEvent> _writer;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.EnsureEventCapacity<MyEvent>(1024);
-        eventWriter = state.GetEventParallelWriter<MyEvent>();
+        _writer = state.GetEventParallelWriter<MyEvent>();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // JobへeventWriterを渡し、ワーカースレッド側ではWriteNoResizeを呼び出す
+        // Job に _writer を渡し、Execute 内で WriteNoResize を呼ぶ。
     }
 }
 ```
 
-> **Warning**
-> EventWriter/EventReaderは必ずOnCreateで取得してキャッシュを行なってください。特にEventReaderは各Readerごとに読み取ったイベントのカウントを記録するため、読み取りのたびに`state.GetEventReader()`を呼び出すとイベントが重複して読み取られる可能性があります。並列Jobからは`EventWriter.Write`を呼ばず、`EventParallelWriter.WriteNoResize`を使ってください。
+`EnsureEventCapacity<T>(capacity)` は現在フレーム用と次フレーム用の両方のバッファに絶対容量を確保します。`EnsureAdditionalEventCapacity<T>(additionalCapacity)` は現在フレームの書き込み済み数を基準に追加容量を確保します。直接 `Events<T>` を使う場合も、`Capacity`、`CurrentFrameCount`、`RemainingCurrentFrameCapacity`、`EnsureCapacity`、`EnsureAdditionalCapacity` を利用できます。
 
-## イベントの仕組み
+## イベントの寿命
 
-Entities Eventsでは`RegisterEvent`属性で登録された型ごとに、イベントのバッファを保持するシングルトンなEntityと、バッファの更新を行うunmanagedな`ISystem`を生成します。生成されたEventSystemは`EventSystemGroup`内で実行され、フレームごとにイベントバッファをクリアします。
-
-ただし、イベントは送信されたフレームの後に1フレームだけ余分に保持されます。そのためSystemは現在のフレームでイベントを読み取れなかった際に、次のフレームでイベントを読み取ることができます。
-
-これにより送信/受信の順序に関わらずイベントを処理できることが保証されますが、受信側のSystemが送信側のSystemより先に実行される場合には1フレームの遅延が生じることに注意してください。これを防ぐには`UpdateBefore`属性や`UpdateAfter`属性を用いてSystem間の実行順を明示的に指定します。
-
-またイベントの寿命は2フレームであるため、毎フレーム読み取りを行わない場合にはイベントが失われる可能性があることに注意してください。バッファの更新を手動で行いたい場合には、以下の`Events<T>`を用いて独自のEventSystemを作成できます。
+書き込まれたイベントは、同じフレームと次のフレームで読めます。`Update` が 2 回呼ばれると未読イベントは破棄されます。この設計により、受信 System が送信 System より先に実行されても 1 フレーム遅延で処理できます。ただし、イベントを失いたくない reader は毎フレーム実行してください。同一フレームでの処理が必須なら、`UpdateBefore` や `UpdateAfter` で System の実行順を明示します。
 
 ## Events<T>
 
-イベントの情報を保持するコレクションとして、独自のNativeContainer`Events<T>`が用意されています。
+`Events<T>` は内部で使っている native container です。生成された ECS cleanup system ではなく、自分でイベント寿命を管理したい場合に使います。
 
 ```cs
-using Unity.Collections;
 using EntitiesEvents;
+using Unity.Collections;
 
-// 新たなEventsを作成
 var events = new Events<MyEvent>(32, Allocator.Temp);
-```
+var writer = events.GetWriter();
+var reader = events.GetReader();
 
-作成したEventsは`Update`を呼び出して更新を行います。これによって内部のバッファがスワップされ、同時に最も古いバッファが削除されます。
-イベントの蓄積によるメモリの消費を防ぐため、更新は毎フレーム行うことが推奨されます。
+writer.Write(new MyEvent { Value = 1 });
 
-```cs
-// Updateを呼び出してバッファのクリアとスワップを行う
+foreach (var eventData in reader.Read())
+{
+    // eventData を処理する。
+}
+
 events.Update();
-```
-
-書き込みや読み取りは`EventWriter/EventReader`を介して行います。これは`GetWriter/GetReader`で取得が可能です。複数のワーカースレッドから書き込む場合は、Jobをスケジュールする前に`EnsureEventCapacity`で容量を確保し、`EventWriter.AsParallelWriter()`を使います。
-
-```cs
-// EventWriterを取得して単一スレッドで書き込む
-var eventWriter = events.GetWriter();
-eventWriter.Write(new MyEvent());
-
-// 並列Job向けのEventParallelWriterを取得する
-var parallelWriter = eventWriter.AsParallelWriter();
-parallelWriter.WriteNoResize(new MyEvent());
-
-// EventReaderを取得して読み取りを行う
-var eventReader = events.GetReader();
-```
-
-使用後は他のNativeContainerと同様に`Dispose`でメモリの解放を行う必要があります。これを忘れるとメモリリークを起こすので注意してください。
-
-```cs
-// Disposeでコンテナを破棄し、メモリの解放を行う
 events.Dispose();
 ```
+
+## Source Generator の保守
+
+`Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` のソースは `SourceGenerators/EntitiesEvents.Generator` にあります。このフォークは Unity 6 以降のみを対象にするため、`Microsoft.CodeAnalysis.CSharp` は 4.3.0 に固定しています。Unity 2022.3 / Roslyn 3.8 互換経路は残していません。
+
+Generator のソースを変更した後は、DLL をビルドしてパッケージ側へコピーします。
+
+```bash
+SourceGenerators/EntitiesEvents.Generator/install-generator.sh
+```
+
+Windows ではこちらを使います。
+
+```bat
+SourceGenerators\EntitiesEvents.Generator\install-generator.cmd
+```
+
+`Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll.meta` の `RoslynAnalyzer` ラベルと、プラグイン platform をすべて無効にする設定は維持してください。
+
+## テストとサンプル
+
+Runtime test は `Assets/EntitiesEvents/Tests/Runtime` にあります。Package Manager から取り込める sample は `Assets/EntitiesEvents/Samples~/BasicUsage` にあり、package manifest に登録済みです。
 
 ## ライセンス
 
 [MIT License](LICENSE)
-
-
-## Source Generator の保守
-
-`Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` のソースは `SourceGenerators/EntitiesEvents.Generator` にあります。このフォークはUnity 6以降のみを対象にするため、`Microsoft.CodeAnalysis.CSharp 4.3.0` に固定しています。Generatorのソースを変更した後は、Windowsなら`SourceGenerators/EntitiesEvents.Generator/install-generator.cmd`、macOS/Linuxなら`install-generator.sh`を実行してDLLをビルドし、`Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` に上書きしてください。`.dll.meta` の `RoslynAnalyzer` ラベルと、全プラットフォーム無効の設定は維持してください。生成器はIncremental Source Generatorで、登録されたイベント型ごとにunmanagedな`ISystem`を生成します。

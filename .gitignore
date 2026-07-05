@@ -79,6 +79,9 @@ crashlytics-build.properties
 [Bb]in/
 [Oo]bj/
 
+# Unity Package Manager lock files are editor-generated for this sample project.
+/Packages/packages-lock.json
+
 # Source generator build outputs
 SourceGenerators/**/bin/
 SourceGenerators/**/obj/

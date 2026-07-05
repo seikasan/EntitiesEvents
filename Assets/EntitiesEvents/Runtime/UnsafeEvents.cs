@@ -33,10 +33,49 @@ namespace EntitiesEvents.LowLevel.Unsafe
         public bool IsCreated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Buffer != null;
+        }
+
+        public int Capacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return Buffer != null;
+                CheckBuffer();
+                return Buffer->Capacity;
             }
+        }
+
+        public int CurrentFrameCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                CheckBuffer();
+                return Buffer->CurrentFrameCount;
+            }
+        }
+
+        public int RemainingCurrentFrameCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                CheckBuffer();
+                return Buffer->RemainingCurrentFrameCapacity;
+            }
+        }
+
+        public void EnsureCapacity(int capacity)
+        {
+            CheckBuffer();
+            Buffer->EnsureCapacity(capacity);
+        }
+
+        public void EnsureAdditionalCapacity(int additionalCapacity)
+        {
+            CheckBuffer();
+            Buffer->EnsureAdditionalCapacity(additionalCapacity);
         }
 
         public void Dispose()
@@ -72,7 +111,7 @@ namespace EntitiesEvents.LowLevel.Unsafe
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckBuffer()
         {
-            if (Buffer == null) throw new InvalidOperationException();
+            if (Buffer == null) throw new InvalidOperationException("The Events container has not been created or has already been disposed.");
         }
     }
 }

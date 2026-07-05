@@ -126,7 +126,6 @@ namespace EntitiesEvents.Generated
             if (_query.IsEmptyIgnoreFilter)
                 return;
 
-            var singleton = _query.GetSingleton<global::EntitiesEvents.Internal.EventSingleton<{item.EventTypeName}>>();
             global::EntitiesEvents.Internal.EventSingletonRuntime.Dispose<{item.EventTypeName}>(_query);
             state.EntityManager.DestroyEntity(_query.GetSingletonEntity());
         }}
@@ -157,6 +156,9 @@ namespace EntitiesEvents.Generated
 
             for (var type = eventType; type != null; type = type.ContainingType)
             {
+                if (type.IsGenericType || type.Arity != 0)
+                    return false;
+
                 if (type.DeclaredAccessibility == Accessibility.Private ||
                     type.DeclaredAccessibility == Accessibility.Protected ||
                     type.DeclaredAccessibility == Accessibility.ProtectedAndInternal)
