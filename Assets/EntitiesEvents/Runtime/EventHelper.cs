@@ -59,7 +59,7 @@ namespace EntitiesEvents
         static EventSingleton<T> GetOrCreateSingleton<T>(EntityManager entityManager)
             where T : unmanaged
         {
-            var query = entityManager.CreateEntityQuery(ComponentType.ReadWrite<EventSingleton<T>>());
+            using var query = entityManager.CreateEntityQuery(ComponentType.ReadWrite<EventSingleton<T>>());
             if (query.TryGetSingleton<EventSingleton<T>>(out var singleton)) return singleton;
             var events = new Events<T>(512, Allocator.Persistent);
             singleton = new EventSingleton<T> { events = events };
@@ -70,13 +70,7 @@ namespace EntitiesEvents
         static EventSingleton<T> GetOrCreateSingleton<T>(ref SystemState state)
             where T : unmanaged
         {
-            var query = state.GetEntityQuery(ComponentType.ReadWrite<EventSingleton<T>>());
-            if (query.TryGetSingleton<EventSingleton<T>>(out var singleton)) return singleton;
-
-            var events = new Events<T>(512, Allocator.Persistent);
-            singleton = new EventSingleton<T> { events = events };
-            state.EntityManager.CreateSingleton(singleton);
-            return singleton;
+            return GetOrCreateSingleton<T>(state.EntityManager);
         }
     }
 }

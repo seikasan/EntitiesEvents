@@ -16,8 +16,8 @@ Entities Events is a library that adds event functionality to Unity's Entity Com
 
 ### Requirements
 
-* Unity 2022.3 or higher
-* Entities 1.0.0 or higher
+* Unity 6.0 / 6000.0 or higher
+* Entities 1.3.15 or higher
 
 ### Installation
 
@@ -117,7 +117,7 @@ public partial struct ReadEventSystem : ISystem
 }
 ```
 
-If your System inherits from a class that extends SystemBase, you can obtain EventWriter/EventReader using `this.GetEventWriter<MyEvent>()` or `this.GetEventWriter<MyEvent>()`.
+If your System inherits from a class that extends SystemBase, you can obtain EventWriter/EventReader using `this.GetEventWriter<MyEvent>()` or `this.GetEventReader<MyEvent>()`.
 
 ```cs
 using Unity.Burst;
@@ -130,7 +130,7 @@ public partial class WriteEventSystemClass : SystemBase
     EventWriter<MyEvent> eventWriter;
 
     [BurstCompile]
-    protected override OnCreate()
+    protected override void OnCreate()
     {
         // Obtain the EventWriter with this.GetEventWriter
         eventWriter = this.GetEventWriter<MyEvent>();
@@ -149,7 +149,7 @@ public partial class WriteEventSystemClass : SystemBase
 
 ## Event Mechanism
 
-Entities Events generates a singleton Entity and a System for each type registered with the `RegisterEvent` attribute to hold event buffers and update the buffers. The generated EventSystem is executed within `EventSystemGroup` and clears the event buffers every frame.
+Entities Events generates a singleton Entity and an unmanaged `ISystem` for each type registered with the `RegisterEvent` attribute to hold event buffers and update the buffers. The generated EventSystem is executed within `EventSystemGroup` and clears the event buffers every frame.
 
 However, events are held for one additional frame after being sent. This means that even if the receiving System is executed before the sending System, there will be a one-frame delay. To prevent this, you can explicitly specify the execution order between Systems using the `UpdateBefore` and `UpdateAfter` attributes.
 
@@ -195,3 +195,6 @@ events.Dispose();
 ## License
 
 [MIT License](LICENSE)
+## Source Generator Maintenance
+
+The source for `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` lives in `SourceGenerators/EntitiesEvents.Generator`. This fork targets Unity 6+ only, so the generator is fixed to `Microsoft.CodeAnalysis.CSharp` 4.3.0 and no longer keeps the Unity 2022.3 / Roslyn 3.8 compatibility path. After building, copy the DLL back to `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` and keep the `RoslynAnalyzer` label plus disabled plugin platforms in the `.dll.meta` file. The generator is an incremental source generator and emits unmanaged `ISystem` cleanup systems for registered event types.

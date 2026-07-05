@@ -41,7 +41,7 @@ namespace EntitiesEvents.LowLevel.Unsafe
 
         public void Dispose()
         {
-            CheckBuffer();
+            if (buffer == null) return;
             buffer->Dispose();
             UnsafeUtility.FreeTracked(buffer, allocator);
             buffer = null;

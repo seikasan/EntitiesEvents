@@ -75,6 +75,15 @@ crashlytics-build.properties
 # Visual Studio Code cache directory
 .vscode/
 
+# .NET build outputs
+[Bb]in/
+[Oo]bj/
+
+# Source generator build outputs
+SourceGenerators/**/bin/
+SourceGenerators/**/obj/
+!SourceGenerators/EntitiesEvents.Generator/EntitiesEvents.Generator.csproj
+
 # DS_Store
 *.DS_Store
 

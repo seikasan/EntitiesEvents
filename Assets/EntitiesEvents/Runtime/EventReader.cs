@@ -23,7 +23,7 @@ namespace EntitiesEvents
         }
 
         [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
-        uint eventCounter;
+        int eventCounter;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
@@ -54,7 +54,7 @@ namespace EntitiesEvents.LowLevel.Unsafe
         }
 
         [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
-        uint eventCounter;
+        int eventCounter;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventsDataIterator<T> Read()
