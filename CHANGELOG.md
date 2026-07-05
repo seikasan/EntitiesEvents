@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.2.0
+
+- Made `EventReader<T>.Read()` return a stable snapshot bounded by the event counter at call time, so events written after `Read()` are consumed by the next read instead of leaking into the current iterator.
+- Cached the selected current-frame parallel writer when `EventParallelWriter<T>` is created, avoiding the write-buffer branch and `AsParallelWriter()` construction on every parallel write.
+- Added a runtime test for stable read snapshots.
+
 ## 4.1.0
 
 - Removed the obsolete `SystemBase` cleanup path and kept the generated unmanaged `ISystem` path as the only runtime path.

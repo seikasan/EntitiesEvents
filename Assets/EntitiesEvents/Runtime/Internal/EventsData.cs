@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -61,9 +62,14 @@ namespace EntitiesEvents.Internal
 
         public void WriteNoResize(in T value)
         {
-            int id = unchecked(Interlocked.Increment(ref EventCounter) - 1);
-            if (_state) _buffer2.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
-            else _buffer1.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
+            AsParallelWriter().WriteNoResize(value);
+        }
+
+        public unsafe EventsDataParallelWriter<T> AsParallelWriter()
+        {
+            return new EventsDataParallelWriter<T>(
+                GetWriteBuffer().AsParallelWriter(),
+                (int*)UnsafeUtility.AddressOf(ref EventCounter));
         }
 
         public void Dispose()
@@ -102,29 +108,51 @@ namespace EntitiesEvents.Internal
         }
     }
 
-    public readonly unsafe ref struct EventsDataIterator<T> where T : unmanaged
+    internal unsafe struct EventsDataParallelWriter<T> where T : unmanaged
     {
-        internal EventsDataIterator(EventsData<T>* buffer, int eventCounter)
+        UnsafeList<EventInstance<T>>.ParallelWriter _writer;
+        [NativeDisableUnsafePtrRestriction] readonly int* _eventCounter;
+
+        public EventsDataParallelWriter(UnsafeList<EventInstance<T>>.ParallelWriter writer, int* eventCounter)
         {
-            _buffer = buffer;
+            _writer = writer;
             _eventCounter = eventCounter;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteNoResize(in T value)
+        {
+            var id = unchecked(Interlocked.Increment(ref UnsafeUtility.AsRef<int>(_eventCounter)) - 1);
+            _writer.AddNoResize(new EventInstance<T>(value, id));
+        }
+    }
+
+    public readonly unsafe ref struct EventsDataIterator<T> where T : unmanaged
+    {
+        internal EventsDataIterator(EventsData<T>* buffer, int startEventCounter, int endEventCounter)
+        {
+            _buffer = buffer;
+            _startEventCounter = startEventCounter;
+            _endEventCounter = endEventCounter;
+        }
+
         readonly EventsData<T>* _buffer;
-        readonly int _eventCounter;
+        readonly int _startEventCounter;
+        readonly int _endEventCounter;
 
         public Enumerator GetEnumerator()
         {
-            return new Enumerator(_buffer->GetReadBuffer(), _buffer->GetWriteBuffer(), _eventCounter);
+            return new Enumerator(_buffer->GetReadBuffer(), _buffer->GetWriteBuffer(), _startEventCounter, _endEventCounter);
         }
 
         public struct Enumerator
         {
-            internal Enumerator(UnsafeList<EventInstance<T>> buffer1, UnsafeList<EventInstance<T>> buffer2, int eventCounter)
+            internal Enumerator(UnsafeList<EventInstance<T>> buffer1, UnsafeList<EventInstance<T>> buffer2, int startEventCounter, int endEventCounter)
             {
                 _reader1 = buffer1.AsParallelReader();
                 _reader2 = buffer2.AsParallelReader();
-                _eventCounter = eventCounter;
+                _startEventCounter = startEventCounter;
+                _endEventCounter = endEventCounter;
                 _current = default;
                 _offset = 0;
                 _readFirstReader = false;
@@ -132,7 +160,8 @@ namespace EntitiesEvents.Internal
 
             readonly UnsafeList<EventInstance<T>>.ParallelReader _reader1;
             readonly UnsafeList<EventInstance<T>>.ParallelReader _reader2;
-            readonly int _eventCounter;
+            readonly int _startEventCounter;
+            readonly int _endEventCounter;
             T _current;
             int _offset;
             bool _readFirstReader;
@@ -149,7 +178,7 @@ namespace EntitiesEvents.Internal
                         ref var instance = ref *(reader.Ptr + _offset);
                         _offset++;
 
-                        if (IsOlder(instance.ID, _eventCounter)) continue;
+                        if (!IsInReadRange(instance.ID, _startEventCounter, _endEventCounter)) continue;
 
                         _current = instance.Value;
                         return true;
@@ -164,9 +193,9 @@ namespace EntitiesEvents.Internal
 
             public void Dispose() { }
 
-            static bool IsOlder(int id, int threshold)
+            static bool IsInReadRange(int id, int start, int end)
             {
-                return unchecked(id - threshold) < 0;
+                return unchecked(id - start) >= 0 && unchecked(end - id) > 0;
             }
         }
     }

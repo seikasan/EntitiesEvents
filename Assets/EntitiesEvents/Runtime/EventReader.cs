@@ -35,8 +35,9 @@ namespace EntitiesEvents
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckReadAndThrow(_safety);
 #endif
-            var itr = new EventsDataIterator<T>(_buffer, _eventCounter);
-            _eventCounter = _buffer->EventCounter;
+            var endEventCounter = _buffer->EventCounter;
+            var itr = new EventsDataIterator<T>(_buffer, _eventCounter, endEventCounter);
+            _eventCounter = endEventCounter;
             return itr;
         }
     }
@@ -59,8 +60,9 @@ namespace EntitiesEvents.LowLevel.Unsafe
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventsDataIterator<T> Read()
         {
-            var itr = new EventsDataIterator<T>(_buffer, _eventCounter);
-            _eventCounter = _buffer->EventCounter;
+            var endEventCounter = _buffer->EventCounter;
+            var itr = new EventsDataIterator<T>(_buffer, _eventCounter, endEventCounter);
+            _eventCounter = endEventCounter;
             return itr;
         }
     }

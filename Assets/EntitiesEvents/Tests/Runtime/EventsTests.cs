@@ -73,6 +73,34 @@ namespace EntitiesEvents.Tests
         }
 
         [Test]
+        public void ReadReturnsStableSnapshot()
+        {
+            var events = new Events<TestEvent>(1, Allocator.Temp);
+            try
+            {
+                var reader = events.GetReader();
+                var writer = events.GetWriter();
+
+                writer.Write(new TestEvent { Value = 1 });
+                var snapshot = reader.Read();
+                writer.Write(new TestEvent { Value = 2 });
+
+                var sum = 0;
+                foreach (var value in snapshot)
+                {
+                    sum += value.Value;
+                }
+
+                Assert.AreEqual(1, sum);
+                Assert.AreEqual(2, Sum(ref reader));
+            }
+            finally
+            {
+                events.Dispose();
+            }
+        }
+
+        [Test]
         public void MultipleReadersKeepIndependentReadPositions()
         {
             var events = new Events<TestEvent>(1, Allocator.Temp);

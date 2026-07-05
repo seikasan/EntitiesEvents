@@ -121,7 +121,7 @@ public partial struct ParallelWriteEventSystem : ISystem
 
 ## Event lifetime
 
-A written event can be read during the same frame and the following frame. After two `Update` calls, unread events are discarded. This design lets receiver systems run before sender systems with a one-frame delay, but it also means readers should run every frame if events must not be lost. If same-frame delivery is required, specify system order with `UpdateBefore` or `UpdateAfter`.
+A written event can be read during the same frame and the following frame. After two `Update` calls, unread events are discarded. This design lets receiver systems run before sender systems with a one-frame delay, but it also means readers should run every frame if events must not be lost. If same-frame delivery is required, specify system order with `UpdateBefore` or `UpdateAfter`. `EventReader<T>.Read()` returns a stable snapshot bounded at the moment it is called, so events written afterwards are read on the next call.
 
 ## Events<T>
 

@@ -121,7 +121,7 @@ public partial struct ParallelWriteEventSystem : ISystem
 
 ## イベントの寿命
 
-書き込まれたイベントは、同じフレームと次のフレームで読めます。`Update` が 2 回呼ばれると未読イベントは破棄されます。この設計により、受信 System が送信 System より先に実行されても 1 フレーム遅延で処理できます。ただし、イベントを失いたくない reader は毎フレーム実行してください。同一フレームでの処理が必須なら、`UpdateBefore` や `UpdateAfter` で System の実行順を明示します。
+書き込まれたイベントは、同じフレームと次のフレームで読めます。`Update` が 2 回呼ばれると未読イベントは破棄されます。この設計により、受信 System が送信 System より先に実行されても 1 フレーム遅延で処理できます。ただし、イベントを失いたくない reader は毎フレーム実行してください。同一フレームでの処理が必須なら、`UpdateBefore` や `UpdateAfter` で System の実行順を明示します。`EventReader<T>.Read()` は呼び出した時点の安定したスナップショットを返すため、その後に書き込まれたイベントは次回の読み取りで処理されます。
 
 ## Events<T>
 
