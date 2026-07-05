@@ -14,23 +14,23 @@ namespace EntitiesEvents
     {
         public Events(int initialCapacity, Allocator allocator)
         {
-            container = new UnsafeEvents<T>(initialCapacity, allocator);
+            _container = new UnsafeEvents<T>(initialCapacity, allocator);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
-            CollectionHelper.SetStaticSafetyId<Events<T>>(ref m_Safety, ref s_staticSafetyId.Data); 
-            if (UnsafeUtility.IsNativeContainerType<T>()) AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
-            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+            Safety = CollectionHelper.CreateSafetyHandle(allocator);
+            CollectionHelper.SetStaticSafetyId<Events<T>>(ref Safety, ref StaticSafetyId.Data); 
+            if (UnsafeUtility.IsNativeContainerType<T>()) AtomicSafetyHandle.SetNestedContainer(Safety, true);
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(Safety, true);
 #endif
         }
 
-        UnsafeEvents<T> container;
+        UnsafeEvents<T> _container;
 
-        internal readonly unsafe EventsData<T>* GetBuffer() => container.buffer;
+        internal readonly unsafe EventsData<T>* GetBuffer() => _container.Buffer;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
-        internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<Events<T>>();
+        internal AtomicSafetyHandle Safety;
+        private static readonly SharedStatic<int> StaticSafetyId = SharedStatic<int>.GetOrCreate<Events<T>>();
 #endif
 
         public bool IsCreated
@@ -38,7 +38,7 @@ namespace EntitiesEvents
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return container.IsCreated;
+                return _container.IsCreated;
             }
         }
 
@@ -46,16 +46,16 @@ namespace EntitiesEvents
         public void Update()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckWriteAndThrow(Safety);
 #endif
-            container.Update();
+            _container.Update();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventWriter<T> GetWriter()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckExistsAndThrow(Safety);
 #endif
             return new EventWriter<T>(this);
         }
@@ -64,7 +64,7 @@ namespace EntitiesEvents
         public EventReader<T> GetReader()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckExistsAndThrow(Safety);
 #endif
             return new EventReader<T>(this);
         }
@@ -73,9 +73,9 @@ namespace EntitiesEvents
         public void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
+            CollectionHelper.DisposeSafetyHandle(ref Safety);
 #endif
-            container.Dispose();
+            _container.Dispose();
         }
     }
 }

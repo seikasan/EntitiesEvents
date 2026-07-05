@@ -13,45 +13,45 @@ namespace EntitiesEvents.LowLevel.Unsafe
         public UnsafeEvents(int initialCapacity, Allocator allocator)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (allocator <= Allocator.None) throw new ArgumentException("Allocator must be Temp, TempJob, Persistent or registered custom allcoator", "allocator");
-            if (initialCapacity < 0) throw new ArgumentOutOfRangeException("initialCapacity", "InitialCapacity must be >= 0");
+            if (allocator <= Allocator.None) throw new ArgumentException("Allocator must be Temp, TempJob, Persistent or registered custom allocator", nameof(allocator));
+            if (initialCapacity < 0) throw new ArgumentOutOfRangeException(nameof(initialCapacity), "InitialCapacity must be >= 0");
 #endif
 
             var size = UnsafeUtility.SizeOf<EventsData<T>>();
-            buffer = (EventsData<T>*)UnsafeUtility.MallocTracked(size, UnsafeUtility.AlignOf<EventsData<T>>(), allocator, 1);
-            UnsafeUtility.MemClear(buffer, size);
+            Buffer = (EventsData<T>*)UnsafeUtility.MallocTracked(size, UnsafeUtility.AlignOf<EventsData<T>>(), allocator, 1);
+            UnsafeUtility.MemClear(Buffer, size);
 
             var data = new EventsData<T>(initialCapacity, allocator);
-            UnsafeUtility.CopyStructureToPtr(ref data, buffer);
+            UnsafeUtility.CopyStructureToPtr(ref data, Buffer);
 
-            this.allocator = allocator;
+            _allocator = allocator;
         }
 
-        [NativeDisableUnsafePtrRestriction] internal EventsData<T>* buffer;
-        readonly Allocator allocator;
+        [NativeDisableUnsafePtrRestriction] internal EventsData<T>* Buffer;
+        readonly Allocator _allocator;
 
         public bool IsCreated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return buffer != null;
+                return Buffer != null;
             }
         }
 
         public void Dispose()
         {
-            if (buffer == null) return;
-            buffer->Dispose();
-            UnsafeUtility.FreeTracked(buffer, allocator);
-            buffer = null;
+            if (Buffer == null) return;
+            Buffer->Dispose();
+            UnsafeUtility.FreeTracked(Buffer, _allocator);
+            Buffer = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update()
         {
             CheckBuffer();
-            buffer->Update();
+            Buffer->Update();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -72,7 +72,7 @@ namespace EntitiesEvents.LowLevel.Unsafe
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckBuffer()
         {
-            if (buffer == null) throw new InvalidOperationException();
+            if (Buffer == null) throw new InvalidOperationException();
         }
     }
 }

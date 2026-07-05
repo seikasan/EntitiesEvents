@@ -7,72 +7,72 @@ namespace EntitiesEvents.Internal
 {
     internal readonly struct EventInstance<T> where T : unmanaged
     {
-        public readonly T value;
-        public readonly int id;
+        public readonly T Value;
+        public readonly int ID;
 
         public EventInstance(in T value, int id)
         {
-            this.value = value;
-            this.id = id;
+            Value = value;
+            ID = id;
         }
     }
 
     internal struct EventsData<T> : IDisposable
         where T : unmanaged
     {
-        internal UnsafeList<EventInstance<T>> buffer1;
-        internal UnsafeList<EventInstance<T>> buffer2;
-        internal int eventCounter;
-        internal int prevEventCounter;
-        bool state;
+        private UnsafeList<EventInstance<T>> _buffer1;
+        private UnsafeList<EventInstance<T>> _buffer2;
+        internal int EventCounter;
+        internal int PrevEventCounter;
+        bool _state;
 
-        internal UnsafeList<EventInstance<T>> GetWriteBuffer() => state ? buffer2 : buffer1;
-        internal UnsafeList<EventInstance<T>> GetReadBuffer() => state ? buffer1 : buffer2;
+        internal UnsafeList<EventInstance<T>> GetWriteBuffer() => _state ? _buffer2 : _buffer1;
+        internal UnsafeList<EventInstance<T>> GetReadBuffer() => _state ? _buffer1 : _buffer2;
 
         public EventsData(int capacity, Allocator allocator)
         {
-            buffer1 = new UnsafeList<EventInstance<T>>(capacity, allocator);
-            buffer2 = new UnsafeList<EventInstance<T>>(capacity, allocator);
-            eventCounter = 0;
-            prevEventCounter = 0;
-            state = false;
+            _buffer1 = new UnsafeList<EventInstance<T>>(capacity, allocator);
+            _buffer2 = new UnsafeList<EventInstance<T>>(capacity, allocator);
+            EventCounter = 0;
+            PrevEventCounter = 0;
+            _state = false;
         }
 
         public void Update()
         {
-            state = !state;
-            if (state) buffer2.Clear();
-            else buffer1.Clear();
+            _state = !_state;
+            if (_state) _buffer2.Clear();
+            else _buffer1.Clear();
 
-            prevEventCounter = eventCounter;
+            PrevEventCounter = EventCounter;
         }
 
         public void Write(in T value)
         {
-            var id = eventCounter;
-            if (state) buffer2.Add(new EventInstance<T>(value, id));
-            else buffer1.Add(new EventInstance<T>(value, id));
-            eventCounter = unchecked(id + 1);
+            var id = EventCounter;
+            if (_state) _buffer2.Add(new EventInstance<T>(value, id));
+            else _buffer1.Add(new EventInstance<T>(value, id));
+            EventCounter = unchecked(id + 1);
         }
 
         public void WriteNoResize(in T value)
         {
-            var id = unchecked(Interlocked.Increment(ref eventCounter) - 1);
-            if (state) buffer2.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
-            else buffer1.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
+            int id = unchecked(Interlocked.Increment(ref EventCounter) - 1);
+            if (_state) _buffer2.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
+            else _buffer1.AsParallelWriter().AddNoResize(new EventInstance<T>(value, id));
         }
 
         public void Dispose()
         {
-            if (buffer1.IsCreated) buffer1.Dispose();
-            if (buffer2.IsCreated) buffer2.Dispose();
+            if (_buffer1.IsCreated) _buffer1.Dispose();
+            if (_buffer2.IsCreated) _buffer2.Dispose();
         }
 
         public void EnsureCapacity(int capacity)
         {
             if (capacity <= 0) return;
 
-            var newCapacity = Math.Max(buffer1.Capacity, buffer2.Capacity);
+            int newCapacity = Math.Max(_buffer1.Capacity, _buffer2.Capacity);
             if (newCapacity >= capacity) return;
 
             newCapacity = Math.Max(1, newCapacity);
@@ -87,8 +87,8 @@ namespace EntitiesEvents.Internal
                 newCapacity <<= 1;
             }
 
-            if (buffer1.Capacity < newCapacity) buffer1.SetCapacity(newCapacity);
-            if (buffer2.Capacity < newCapacity) buffer2.SetCapacity(newCapacity);
+            if (_buffer1.Capacity < newCapacity) _buffer1.SetCapacity(newCapacity);
+            if (_buffer2.Capacity < newCapacity) _buffer2.SetCapacity(newCapacity);
         }
     }
 
@@ -96,59 +96,59 @@ namespace EntitiesEvents.Internal
     {
         internal EventsDataIterator(EventsData<T>* buffer, int eventCounter)
         {
-            this.buffer = buffer;
-            this.eventCounter = eventCounter;
+            _buffer = buffer;
+            _eventCounter = eventCounter;
         }
 
-        readonly EventsData<T>* buffer;
-        readonly int eventCounter;
+        readonly EventsData<T>* _buffer;
+        readonly int _eventCounter;
 
         public Enumerator GetEnumerator()
         {
-            return new Enumerator(buffer->GetReadBuffer(), buffer->GetWriteBuffer(), eventCounter);
+            return new Enumerator(_buffer->GetReadBuffer(), _buffer->GetWriteBuffer(), _eventCounter);
         }
 
         public struct Enumerator
         {
             internal Enumerator(UnsafeList<EventInstance<T>> buffer1, UnsafeList<EventInstance<T>> buffer2, int eventCounter)
             {
-                reader1 = buffer1.AsParallelReader();
-                reader2 = buffer2.AsParallelReader();
-                this.eventCounter = eventCounter;
-                current = default;
-                offset = default;
-                readFirstReader = default;
+                _reader1 = buffer1.AsParallelReader();
+                _reader2 = buffer2.AsParallelReader();
+                _eventCounter = eventCounter;
+                _current = default;
+                _offset = 0;
+                _readFirstReader = false;
             }
 
-            readonly UnsafeList<EventInstance<T>>.ParallelReader reader1;
-            readonly UnsafeList<EventInstance<T>>.ParallelReader reader2;
-            readonly int eventCounter;
-            T current;
-            int offset;
-            bool readFirstReader;
+            readonly UnsafeList<EventInstance<T>>.ParallelReader _reader1;
+            readonly UnsafeList<EventInstance<T>>.ParallelReader _reader2;
+            readonly int _eventCounter;
+            T _current;
+            int _offset;
+            bool _readFirstReader;
 
-            public T Current => current;
+            public T Current => _current;
 
             public bool MoveNext()
             {
                 while (true)
                 {
-                    var reader = readFirstReader ? reader2 : reader1;
-                    while (reader.Ptr != null && reader.Length > offset)
+                    var reader = _readFirstReader ? _reader2 : _reader1;
+                    while (reader.Ptr != null && reader.Length > _offset)
                     {
-                        ref var instance = ref *(reader.Ptr + offset);
-                        offset++;
+                        ref var instance = ref *(reader.Ptr + _offset);
+                        _offset++;
 
-                        if (IsOlder(instance.id, eventCounter)) continue;
+                        if (IsOlder(instance.ID, _eventCounter)) continue;
 
-                        current = instance.value;
+                        _current = instance.Value;
                         return true;
                     }
 
-                    if (readFirstReader) return false;
+                    if (_readFirstReader) return false;
 
-                    readFirstReader = true;
-                    offset = 0;
+                    _readFirstReader = true;
+                    _offset = 0;
                 }
             }
 

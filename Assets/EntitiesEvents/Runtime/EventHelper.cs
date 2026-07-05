@@ -9,13 +9,13 @@ namespace EntitiesEvents
         public static EventWriter<T> GetEventWriter<T>(this ref SystemState state)
             where T : unmanaged
         {
-            return GetOrCreateSingleton<T>(ref state).events.GetWriter();
+            return GetOrCreateSingleton<T>(ref state).Events.GetWriter();
         }
 
         public static EventWriter<T> GetEventWriter<T>(this EntityManager entityManager)
             where T : unmanaged
         {
-            return GetOrCreateSingleton<T>(entityManager).events.GetWriter();
+            return GetOrCreateSingleton<T>(entityManager).Events.GetWriter();
         }
 
         public static EventParallelWriter<T> GetEventParallelWriter<T>(this ref SystemState state)
@@ -33,26 +33,26 @@ namespace EntitiesEvents
         public static EventReader<T> GetEventReader<T>(this ref SystemState state)
             where T : unmanaged
         {
-            return GetOrCreateSingleton<T>(ref state).events.GetReader();
+            return GetOrCreateSingleton<T>(ref state).Events.GetReader();
         }
 
         public static EventReader<T> GetEventReader<T>(this EntityManager entityManager)
             where T : unmanaged
         {
-            return GetOrCreateSingleton<T>(entityManager).events.GetReader();
+            return GetOrCreateSingleton<T>(entityManager).Events.GetReader();
         }
 
         public static unsafe void EnsureEventCapacity<T>(this ref SystemState state, int capacity)
             where T : unmanaged
         {
-            var events = GetOrCreateSingleton<T>(ref state).events;
+            var events = GetOrCreateSingleton<T>(ref state).Events;
             events.GetBuffer()->EnsureCapacity(capacity);
         }
 
         public static unsafe void EnsureEventCapacity<T>(this EntityManager entityManager, int capacity)
             where T : unmanaged
         {
-            var events = GetOrCreateSingleton<T>(entityManager).events;
+            var events = GetOrCreateSingleton<T>(entityManager).Events;
             events.GetBuffer()->EnsureCapacity(capacity);
         }
 
@@ -64,7 +64,7 @@ namespace EntitiesEvents
 
             singleton = new EventSingleton<T>
             {
-                events = new Events<T>(512, Allocator.Persistent)
+                Events = new Events<T>(512, Allocator.Persistent)
             };
             entityManager.CreateSingleton(singleton);
             return singleton;

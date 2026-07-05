@@ -117,7 +117,7 @@ namespace EntitiesEvents.Generated
         public void OnUpdate(ref global::Unity.Entities.SystemState state)
         {{
             state.Dependency.Complete();
-            _query.GetSingleton<global::EntitiesEvents.Internal.EventSingleton<{item.EventTypeName}>>().events.Update();
+            global::EntitiesEvents.Internal.EventSingletonRuntime.Update<{item.EventTypeName}>(_query);
         }}
 
         [global::Unity.Burst.BurstCompile]
@@ -127,7 +127,7 @@ namespace EntitiesEvents.Generated
                 return;
 
             var singleton = _query.GetSingleton<global::EntitiesEvents.Internal.EventSingleton<{item.EventTypeName}>>();
-            singleton.events.Dispose();
+            global::EntitiesEvents.Internal.EventSingletonRuntime.Dispose<{item.EventTypeName}>(_query);
             state.EntityManager.DestroyEntity(_query.GetSingletonEntity());
         }}
     }}

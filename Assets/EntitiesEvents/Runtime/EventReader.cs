@@ -11,32 +11,32 @@ namespace EntitiesEvents
     {
         public EventReader(in Events<T> events)
         {
-            buffer = events.GetBuffer();
-            eventCounter = buffer->prevEventCounter;
+            _buffer = events.GetBuffer();
+            _eventCounter = _buffer->PrevEventCounter;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(events.m_Safety);
-            var ash = events.m_Safety;
+            AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(events.Safety);
+            var ash = events.Safety;
             AtomicSafetyHandle.UseSecondaryVersion(ref ash);
-            m_Safety = ash;
+            _safety = ash;
 #endif
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
-        int eventCounter;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
+        int _eventCounter;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
+        private readonly AtomicSafetyHandle _safety;
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventsDataIterator<T> Read()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckReadAndThrow(_safety);
 #endif
-            var itr = new EventsDataIterator<T>(buffer, eventCounter);
-            eventCounter = buffer->eventCounter;
+            var itr = new EventsDataIterator<T>(_buffer, _eventCounter);
+            _eventCounter = _buffer->EventCounter;
             return itr;
         }
     }
@@ -49,18 +49,18 @@ namespace EntitiesEvents.LowLevel.Unsafe
     {
         public UnsafeEventReader(in UnsafeEvents<T> events)
         {
-            buffer = events.buffer;
-            eventCounter = buffer->prevEventCounter;
+            _buffer = events.Buffer;
+            _eventCounter = _buffer->PrevEventCounter;
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
-        int eventCounter;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
+        int _eventCounter;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventsDataIterator<T> Read()
         {
-            var itr = new EventsDataIterator<T>(buffer, eventCounter);
-            eventCounter = buffer->eventCounter;
+            var itr = new EventsDataIterator<T>(_buffer, _eventCounter);
+            _eventCounter = _buffer->EventCounter;
             return itr;
         }
     }

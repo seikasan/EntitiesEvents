@@ -5,7 +5,7 @@ namespace EntitiesEvents.Internal
 {
     [BurstCompile]
     [UpdateInGroup(typeof(EventSystemGroup))]
-    public unsafe abstract partial class EventSystemBase<T> : SystemBase
+    public abstract partial class EventSystemBase<T> : SystemBase
         where T : unmanaged
     {
         [BurstCompile]
@@ -18,7 +18,7 @@ namespace EntitiesEvents.Internal
         protected override void OnUpdate()
         {
             CompleteDependency();
-            SystemAPI.GetSingleton<EventSingleton<T>>().events.Update();
+            SystemAPI.GetSingleton<EventSingleton<T>>().Events.Update();
         }
 
         [BurstCompile]
@@ -26,19 +26,19 @@ namespace EntitiesEvents.Internal
         {
             if (SystemAPI.TryGetSingleton<EventSingleton<T>>(out var singleton))
             {
-                singleton.events.Dispose();
+                singleton.Events.Dispose();
                 EntityManager.DestroyEntity(SystemAPI.GetSingletonEntity<EventSingleton<T>>());
             }
         }
 
         public EventWriter<T> GetEventWriter()
         {
-            return SystemAPI.GetSingleton<EventSingleton<T>>().events.GetWriter();
+            return SystemAPI.GetSingleton<EventSingleton<T>>().Events.GetWriter();
         }
 
         public EventReader<T> GetEventReader()
         {
-            return SystemAPI.GetSingleton<EventSingleton<T>>().events.GetReader();
+            return SystemAPI.GetSingleton<EventSingleton<T>>().Events.GetReader();
         }
     }
 }

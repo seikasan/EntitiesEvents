@@ -1,6 +1,6 @@
 {
-  "name": "com.annulusgames.entities-events",
-  "version": "3.0.0",
+  "name": "com.seikasan.entities-events",
+  "version": "4.0.0",
   "displayName": "Entities Events",
   "description": "Provides Unity 6+ ECS inter-system messaging with source-generated event cleanup systems.",
   "unity": "6000.0",
@@ -8,6 +8,12 @@
     "name": "Annulus Games",
     "url": "https://github.com/AnnulusGames"
   },
+  "contributors": [
+    {
+      "name": "seika",
+      "url": "https://github.com/seikasan"
+    }
+  ],
   "dependencies": {
     "com.unity.entities": "1.4.7"
   },

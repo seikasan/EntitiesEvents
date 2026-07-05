@@ -5,45 +5,45 @@ using EntitiesEvents.Internal;
 namespace EntitiesEvents
 {
     [NativeContainer]
-    public unsafe struct EventWriter<T>
+    public readonly unsafe struct EventWriter<T>
         where T : unmanaged
     {
         public EventWriter(in Events<T> events)
         {
-            buffer = events.GetBuffer();
+            _buffer = events.GetBuffer();
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(events.m_Safety);
-            var ash = events.m_Safety;
+            AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(events.Safety);
+            var ash = events.Safety;
             AtomicSafetyHandle.UseSecondaryVersion(ref ash);
-            m_Safety = ash;
+            _safety = ash;
 #endif
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
+        private readonly AtomicSafetyHandle _safety;
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(in T value)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckWriteAndThrow(_safety);
 #endif
-            buffer->Write(value);
+            _buffer->Write(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EventParallelWriter<T> AsParallelWriter()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckWriteAndThrow(_safety);
 #endif
-            return new EventParallelWriter<T>(buffer
+            return new EventParallelWriter<T>(_buffer
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-                , m_Safety
+                , _safety
 #endif
             );
         }
@@ -51,7 +51,7 @@ namespace EntitiesEvents
 
     [NativeContainer]
     [NativeContainerIsAtomicWriteOnly]
-    public unsafe struct EventParallelWriter<T>
+    public readonly unsafe struct EventParallelWriter<T>
         where T : unmanaged
     {
         internal EventParallelWriter(EventsData<T>* buffer
@@ -60,68 +60,68 @@ namespace EntitiesEvents
 #endif
         )
         {
-            this.buffer = buffer;
+            _buffer = buffer;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_Safety = safety;
+            _safety = safety;
 #endif
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal AtomicSafetyHandle m_Safety;
+        private readonly AtomicSafetyHandle _safety;
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteNoResize(in T value)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+            AtomicSafetyHandle.CheckWriteAndThrow(_safety);
 #endif
-            buffer->WriteNoResize(value);
+            _buffer->WriteNoResize(value);
         }
     }
 }
 
 namespace EntitiesEvents.LowLevel.Unsafe
 {
-    public unsafe struct UnsafeEventWriter<T>
+    public readonly unsafe struct UnsafeEventWriter<T>
         where T : unmanaged
     {
         public UnsafeEventWriter(in UnsafeEvents<T> events)
         {
-            buffer = events.buffer;
+            _buffer = events.Buffer;
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(in T value)
         {
-            buffer->Write(value);
+            _buffer->Write(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public UnsafeEventParallelWriter<T> AsParallelWriter()
         {
-            return new UnsafeEventParallelWriter<T>(buffer);
+            return new UnsafeEventParallelWriter<T>(_buffer);
         }
     }
 
-    public unsafe struct UnsafeEventParallelWriter<T>
+    public readonly unsafe struct UnsafeEventParallelWriter<T>
         where T : unmanaged
     {
         internal UnsafeEventParallelWriter(EventsData<T>* buffer)
         {
-            this.buffer = buffer;
+            _buffer = buffer;
         }
 
-        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
+        [NativeDisableUnsafePtrRestriction] readonly EventsData<T>* _buffer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteNoResize(in T value)
         {
-            buffer->WriteNoResize(value);
+            _buffer->WriteNoResize(value);
         }
     }
 }

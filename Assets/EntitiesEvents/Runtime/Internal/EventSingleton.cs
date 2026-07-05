@@ -2,9 +2,9 @@ using Unity.Entities;
 
 namespace EntitiesEvents.Internal
 {
-    public unsafe struct EventSingleton<T> : IComponentData
+    public struct EventSingleton<T> : IComponentData
         where T : unmanaged
     {
-        public Events<T> events;
+        internal Events<T> Events;
     }
 }
