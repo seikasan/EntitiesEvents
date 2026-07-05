@@ -117,7 +117,7 @@ public partial struct ReadEventSystem : ISystem
 }
 ```
 
-If your System inherits from a class that extends SystemBase, you can obtain EventWriter/EventReader using `this.GetEventWriter<MyEvent>()` or `this.GetEventReader<MyEvent>()`.
+For parallel jobs, obtain an `EventParallelWriter` and reserve enough capacity before scheduling the job. Parallel writes never resize the backing buffer.
 
 ```cs
 using Unity.Burst;
@@ -125,27 +125,27 @@ using Unity.Entities;
 using EntitiesEvents;
 
 [BurstCompile]
-public partial class WriteEventSystemClass : SystemBase
+public partial struct ParallelWriteEventSystem : ISystem
 {
-    EventWriter<MyEvent> eventWriter;
+    EventParallelWriter<MyEvent> eventWriter;
 
     [BurstCompile]
-    protected override void OnCreate()
+    public void OnCreate(ref SystemState state)
     {
-        // Obtain the EventWriter with this.GetEventWriter
-        eventWriter = this.GetEventWriter<MyEvent>();
+        state.EnsureEventCapacity<MyEvent>(1024);
+        eventWriter = state.GetEventParallelWriter<MyEvent>();
     }
 
     [BurstCompile]
-    protected override void OnUpdate()
+    public void OnUpdate(ref SystemState state)
     {
-        eventWriter.Write(new MyEvent());
+        // Pass eventWriter to a job and call WriteNoResize from worker threads.
     }
 }
 ```
 
 > **Warning**
-> Always obtain EventWriter/EventReader and cache it in OnCreate. In particular, EventReader records the count of unread events for each reader, so calling `state.GetEventReader()` each time you read can lead to duplicated event reads.
+> Always obtain EventWriter/EventReader and cache it in OnCreate. In particular, EventReader records the count of unread events for each reader, so calling `state.GetEventReader()` each time you read can lead to duplicated event reads. Do not use `EventWriter.Write` from parallel jobs; use `EventParallelWriter.WriteNoResize` instead.
 
 ## Event Mechanism
 
@@ -174,12 +174,16 @@ You can call `Update` to update the container, which swaps the internal buffer a
 events.Update();
 ```
 
-Writing and reading are done through `EventWriter/EventReader`, which can be obtained using `GetWriter/GetReader`.
+Writing and reading are done through `EventWriter/EventReader`, which can be obtained using `GetWriter/GetReader`. If you need to write from multiple worker threads, use `EventWriter.AsParallelWriter()` and call `EnsureEventCapacity` before scheduling the job.
 
 ```cs
-// Obtain EventWriter and write
+// Obtain EventWriter and write on a single thread
 var eventWriter = events.GetWriter();
 eventWriter.Write(new MyEvent());
+
+// Obtain EventParallelWriter for parallel jobs
+var parallelWriter = eventWriter.AsParallelWriter();
+parallelWriter.WriteNoResize(new MyEvent());
 
 // Obtain EventReader and read
 var eventReader = events.GetReader();
@@ -197,4 +201,4 @@ events.Dispose();
 [MIT License](LICENSE)
 ## Source Generator Maintenance
 
-The source for `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` lives in `SourceGenerators/EntitiesEvents.Generator`. This fork targets Unity 6+ only, so the generator is fixed to `Microsoft.CodeAnalysis.CSharp` 4.3.0 and no longer keeps the Unity 2022.3 / Roslyn 3.8 compatibility path. After building, copy the DLL back to `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` and keep the `RoslynAnalyzer` label plus disabled plugin platforms in the `.dll.meta` file. The generator is an incremental source generator and emits unmanaged `ISystem` cleanup systems for registered event types.
+The source for `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll` lives in `SourceGenerators/EntitiesEvents.Generator`. This fork targets Unity 6+ only, so the generator is fixed to `Microsoft.CodeAnalysis.CSharp` 4.3.0 and no longer keeps the Unity 2022.3 / Roslyn 3.8 compatibility path. After changing the generator source, run `SourceGenerators/EntitiesEvents.Generator/install-generator.cmd` on Windows or `install-generator.sh` on macOS/Linux to rebuild and copy the DLL back to `Assets/EntitiesEvents/Generator/EntitiesEventsGenerator.dll`. Keep the `RoslynAnalyzer` label plus disabled plugin platforms in the `.dll.meta` file. The generator is an incremental source generator and emits unmanaged `ISystem` cleanup systems for registered event types.

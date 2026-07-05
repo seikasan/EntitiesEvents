@@ -1,13 +1,11 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Threading;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
 namespace EntitiesEvents.Internal
 {
-    public readonly struct EventInstance<T> where T : unmanaged
+    internal readonly struct EventInstance<T> where T : unmanaged
     {
         public readonly T value;
         public readonly int id;
@@ -19,7 +17,7 @@ namespace EntitiesEvents.Internal
         }
     }
 
-    public struct EventsData<T> : IDisposable
+    internal struct EventsData<T> : IDisposable
         where T : unmanaged
     {
         internal UnsafeList<EventInstance<T>> buffer1;
@@ -51,9 +49,10 @@ namespace EntitiesEvents.Internal
 
         public void Write(in T value)
         {
-            if (state) buffer2.Add(new EventInstance<T>(value, eventCounter));
-            else buffer1.Add(new EventInstance<T>(value, eventCounter));
-            eventCounter = unchecked(eventCounter + 1);
+            var id = eventCounter;
+            if (state) buffer2.Add(new EventInstance<T>(value, id));
+            else buffer1.Add(new EventInstance<T>(value, id));
+            eventCounter = unchecked(id + 1);
         }
 
         public void WriteNoResize(in T value)
@@ -73,8 +72,20 @@ namespace EntitiesEvents.Internal
         {
             if (capacity <= 0) return;
 
-            var newCapacity = Math.Max(1, Math.Max(buffer1.Capacity, buffer2.Capacity));
-            while (newCapacity < capacity) newCapacity <<= 1;
+            var newCapacity = Math.Max(buffer1.Capacity, buffer2.Capacity);
+            if (newCapacity >= capacity) return;
+
+            newCapacity = Math.Max(1, newCapacity);
+            while (newCapacity < capacity)
+            {
+                if (newCapacity > int.MaxValue / 2)
+                {
+                    newCapacity = capacity;
+                    break;
+                }
+
+                newCapacity <<= 1;
+            }
 
             if (buffer1.Capacity < newCapacity) buffer1.SetCapacity(newCapacity);
             if (buffer2.Capacity < newCapacity) buffer2.SetCapacity(newCapacity);
@@ -83,11 +94,12 @@ namespace EntitiesEvents.Internal
 
     public readonly unsafe ref struct EventsDataIterator<T> where T : unmanaged
     {
-        public EventsDataIterator(EventsData<T>* buffer, int eventCounter)
+        internal EventsDataIterator(EventsData<T>* buffer, int eventCounter)
         {
             this.buffer = buffer;
             this.eventCounter = eventCounter;
         }
+
         readonly EventsData<T>* buffer;
         readonly int eventCounter;
 
@@ -96,9 +108,9 @@ namespace EntitiesEvents.Internal
             return new Enumerator(buffer->GetReadBuffer(), buffer->GetWriteBuffer(), eventCounter);
         }
 
-        public struct Enumerator : IEnumerator<T>
+        public struct Enumerator
         {
-            public Enumerator(UnsafeList<EventInstance<T>> buffer1, UnsafeList<EventInstance<T>> buffer2, int eventCounter)
+            internal Enumerator(UnsafeList<EventInstance<T>> buffer1, UnsafeList<EventInstance<T>> buffer2, int eventCounter)
             {
                 reader1 = buffer1.AsParallelReader();
                 reader2 = buffer2.AsParallelReader();
@@ -116,9 +128,6 @@ namespace EntitiesEvents.Internal
             bool readFirstReader;
 
             public T Current => current;
-            object IEnumerator.Current => current;
-
-            public void Dispose() { }
 
             public bool MoveNext()
             {
@@ -143,10 +152,7 @@ namespace EntitiesEvents.Internal
                 }
             }
 
-            public void Reset()
-            {
-                throw new NotSupportedException();
-            }
+            public void Dispose() { }
 
             static bool IsOlder(int id, int threshold)
             {

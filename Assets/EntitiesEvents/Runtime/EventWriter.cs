@@ -5,7 +5,6 @@ using EntitiesEvents.Internal;
 namespace EntitiesEvents
 {
     [NativeContainer]
-    [NativeContainerIsAtomicWriteOnly]
     public unsafe struct EventWriter<T>
         where T : unmanaged
     {
@@ -37,6 +36,43 @@ namespace EntitiesEvents
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public EventParallelWriter<T> AsParallelWriter()
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
+            return new EventParallelWriter<T>(buffer
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                , m_Safety
+#endif
+            );
+        }
+    }
+
+    [NativeContainer]
+    [NativeContainerIsAtomicWriteOnly]
+    public unsafe struct EventParallelWriter<T>
+        where T : unmanaged
+    {
+        internal EventParallelWriter(EventsData<T>* buffer
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            , AtomicSafetyHandle safety
+#endif
+        )
+        {
+            this.buffer = buffer;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            m_Safety = safety;
+#endif
+        }
+
+        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        internal AtomicSafetyHandle m_Safety;
+#endif
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteNoResize(in T value)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -64,6 +100,23 @@ namespace EntitiesEvents.LowLevel.Unsafe
         {
             buffer->Write(value);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public UnsafeEventParallelWriter<T> AsParallelWriter()
+        {
+            return new UnsafeEventParallelWriter<T>(buffer);
+        }
+    }
+
+    public unsafe struct UnsafeEventParallelWriter<T>
+        where T : unmanaged
+    {
+        internal UnsafeEventParallelWriter(EventsData<T>* buffer)
+        {
+            this.buffer = buffer;
+        }
+
+        [NativeDisableUnsafePtrRestriction] EventsData<T>* buffer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteNoResize(in T value)

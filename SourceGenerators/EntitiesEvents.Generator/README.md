@@ -10,7 +10,13 @@ Build and install:
 SourceGenerators/EntitiesEvents.Generator/install-generator.sh
 ```
 
-On Windows PowerShell:
+On Windows, prefer the `.cmd` wrapper because it is not blocked by PowerShell execution policy:
+
+```bat
+SourceGenerators\EntitiesEvents.Generator\install-generator.cmd
+```
+
+PowerShell is also available if your execution policy allows local scripts:
 
 ```powershell
 SourceGenerators/EntitiesEvents.Generator/install-generator.ps1

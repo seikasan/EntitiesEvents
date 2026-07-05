@@ -12,16 +12,22 @@ namespace EntitiesEvents
             return GetOrCreateSingleton<T>(ref state).events.GetWriter();
         }
 
-        public static EventWriter<T> GetEventWriter<T>(this SystemBase systemBase)
-            where T : unmanaged
-        {
-            return GetEventWriter<T>(ref systemBase.CheckedStateRef);
-        }
-
         public static EventWriter<T> GetEventWriter<T>(this EntityManager entityManager)
             where T : unmanaged
         {
             return GetOrCreateSingleton<T>(entityManager).events.GetWriter();
+        }
+
+        public static EventParallelWriter<T> GetEventParallelWriter<T>(this ref SystemState state)
+            where T : unmanaged
+        {
+            return GetEventWriter<T>(ref state).AsParallelWriter();
+        }
+
+        public static EventParallelWriter<T> GetEventParallelWriter<T>(this EntityManager entityManager)
+            where T : unmanaged
+        {
+            return entityManager.GetEventWriter<T>().AsParallelWriter();
         }
 
         public static EventReader<T> GetEventReader<T>(this ref SystemState state)
@@ -30,26 +36,20 @@ namespace EntitiesEvents
             return GetOrCreateSingleton<T>(ref state).events.GetReader();
         }
 
-        public static EventReader<T> GetEventReader<T>(this SystemBase systemBase)
-            where T : unmanaged
-        {
-            return GetEventReader<T>(ref systemBase.CheckedStateRef);
-        }
-
         public static EventReader<T> GetEventReader<T>(this EntityManager entityManager)
             where T : unmanaged
         {
             return GetOrCreateSingleton<T>(entityManager).events.GetReader();
         }
 
-        public static unsafe void EnsureBufferCapacity<T>(ref SystemState state, int capacity)
+        public static unsafe void EnsureEventCapacity<T>(this ref SystemState state, int capacity)
             where T : unmanaged
         {
             var events = GetOrCreateSingleton<T>(ref state).events;
             events.GetBuffer()->EnsureCapacity(capacity);
         }
 
-        public static unsafe void EnsureBufferCapacity<T>(EntityManager entityManager, int capacity)
+        public static unsafe void EnsureEventCapacity<T>(this EntityManager entityManager, int capacity)
             where T : unmanaged
         {
             var events = GetOrCreateSingleton<T>(entityManager).events;
@@ -61,8 +61,11 @@ namespace EntitiesEvents
         {
             using var query = entityManager.CreateEntityQuery(ComponentType.ReadWrite<EventSingleton<T>>());
             if (query.TryGetSingleton<EventSingleton<T>>(out var singleton)) return singleton;
-            var events = new Events<T>(512, Allocator.Persistent);
-            singleton = new EventSingleton<T> { events = events };
+
+            singleton = new EventSingleton<T>
+            {
+                events = new Events<T>(512, Allocator.Persistent)
+            };
             entityManager.CreateSingleton(singleton);
             return singleton;
         }
