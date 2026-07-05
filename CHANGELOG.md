@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.1
+
+- Added explicit 'private' modifier to EventWriter, EventReader, and EventParallelWriter fields in README.md and README_JA.md examples for clarity and to satisfy code analyzers.
+
 ## 4.2.0
 
 - Made `EventReader<T>.Read()` return a stable snapshot bounded by the event counter at call time, so events written after `Read()` are consumed by the next read instead of leaking into the current iterator.

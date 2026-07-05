@@ -54,7 +54,7 @@ using Unity.Entities;
 [BurstCompile]
 public partial struct WriteEventSystem : ISystem
 {
-    EventWriter<MyEvent> _writer;
+    private EventWriter<MyEvent> _writer;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -71,7 +71,7 @@ public partial struct WriteEventSystem : ISystem
 
 public partial struct ReadEventSystem : ISystem
 {
-    EventReader<MyEvent> _reader;
+    private EventReader<MyEvent> _reader;
 
     public void OnCreate(ref SystemState state)
     {
@@ -100,7 +100,7 @@ using Unity.Entities;
 [BurstCompile]
 public partial struct ParallelWriteEventSystem : ISystem
 {
-    EventParallelWriter<MyEvent> _writer;
+    private EventParallelWriter<MyEvent> _writer;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
